@@ -19,6 +19,9 @@
       tree
       binutils
       file
+      git
+      age
+      sops
     ];
   };
 
@@ -39,6 +42,8 @@
     hostName = "nixos-vm";
   };
 
+  sops.secrets.example-key.neededForUsers = true;
+
   users.mutableUsers = false;
   users.users.user = {
     isNormalUser = true;
@@ -50,6 +55,7 @@
       "git"
     ];
     shell = pkgs.bash;
+    # hashedPasswordFile = config.sops.secrets.example-key.path
     initialPassword = "testpw";
   };
 
@@ -60,36 +66,38 @@
 
   # generate new key at ~/.config/sops/age/keys.txt --> age-keygen -o ~/.config/sops/age/keys.txt
   # public key of ~/.config/sops/age/keys.txt --> age-keygen -y ~/.config/sops/age/keys.txt
-  sops.age.keyFile = "/home/angelos/.config/sops/age/keys.txt";
+  sops.age.keyFile = "/home/user/.config/sops/age/keys.txt";
 
   sops.secrets.example-key = { };
   sops.secrets."myservice/my_subdir/my_secret" = {
-    # owner = "sometestservice";
+    owner = "sometestservice";
   };
 
-  # systemd.services."sometestservice" = {
-  #   script = ''
-  #       echo "
-  #       Hey bro! I'm a service, and imma send this secure password:
-  #       $(cat ${config.sops.secrets."myservice/my_subdir/my_secret".path})
-  #       located in:
-  #       ${config.sops.secrets."myservice/my_subdir/my_secret".path}
-  #       to database and hack the mainframe
-  #       " > /var/lib/sometestservice/testfile
-  #     '';
-  #   serviceConfig = {
-  #     User = "sometestservice";
-  #     WorkingDirectory = "/var/lib/sometestservice";
-  #   };
-  # };
-  #
-  # users.users.sometestservice = {
-  #   home = "/var/lib/sometestservice";
-  #   createHome = true;
-  #   isSystemUser = true;
-  #   group = "sometestservice";
-  # };
-  # users.groups.sometestservice = { };
+  systemd.services."sometestservice" = {
+    script = ''
+        echo "
+        Hey bro! I'm a service, and imma send this secure password:
+        $(cat ${config.sops.secrets."myservice/my_subdir/my_secret".path})
+        located in:
+        ${config.sops.secrets."myservice/my_subdir/my_secret".path}
+        to database and hack the mainframe
+        " > /var/lib/sometestservice/testfile
+      '';
+    serviceConfig = {
+      User = "sometestservice";
+      WorkingDirectory = "/var/lib/sometestservice";
+    };
+  };
+
+  users.users.sometestservice = {
+    home = "/var/lib/sometestservice";
+    createHome = true;
+    isSystemUser = true;
+    group = "sometestservice";
+  };
+  users.groups.sometestservice = { };
+
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   system.stateVersion = "24.05";
 }
